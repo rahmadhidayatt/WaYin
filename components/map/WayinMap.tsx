@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import type mapboxgl from 'mapbox-gl';
 import { Place } from '@/types';
-import { Accessibility, DoorOpen, Info } from 'lucide-react';
+import { MapPin, Info } from 'lucide-react';
 import { INDONESIA_DEFAULT_CENTER, INDONESIA_DEFAULT_ZOOM } from '@/lib/mock-data';
 
 interface WayinMapProps {
@@ -12,6 +13,7 @@ interface WayinMapProps {
   zoomAction?: number;
   recenterAction?: number;
   flyToCoordinates?: { lng: number; lat: number; ts: number } | null;
+  userLocation?: [number, number] | null;
 }
 
 export function WayinMap({
@@ -21,10 +23,12 @@ export function WayinMap({
   zoomAction,
   recenterAction,
   flyToCoordinates,
+  userLocation,
 }: WayinMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const [hasMapboxError, setHasMapboxError] = useState(!mapboxToken);
@@ -53,16 +57,21 @@ export function WayinMap({
   useEffect(() => {
     if (recenterAction === undefined || recenterAction === 0) return;
     if (mapInstanceRef.current) {
+      const targetCenter = userLocation
+        ? userLocation
+        : selectedPlace
+        ? selectedPlace.coordinates
+        : INDONESIA_DEFAULT_CENTER;
       mapInstanceRef.current.flyTo({
-        center: selectedPlace ? selectedPlace.coordinates : INDONESIA_DEFAULT_CENTER,
-        zoom: INDONESIA_DEFAULT_ZOOM,
+        center: targetCenter,
+        zoom: userLocation ? 16 : INDONESIA_DEFAULT_ZOOM,
         essential: true,
       });
     } else {
       setPan({ x: 0, y: 0 });
       setZoom(1);
     }
-  }, [recenterAction, selectedPlace]);
+  }, [recenterAction, selectedPlace, userLocation]);
 
   // Fly to a geocoded location from the search autocomplete
   useEffect(() => {
@@ -81,13 +90,18 @@ export function WayinMap({
   const selectedPlaceRef = useRef(selectedPlace);
   const onSelectPlaceRef = useRef(onSelectPlace);
 
-  placesRef.current = places;
-  selectedPlaceRef.current = selectedPlace;
-  onSelectPlaceRef.current = onSelectPlace;
+  useEffect(() => {
+    placesRef.current = places;
+    selectedPlaceRef.current = selectedPlace;
+    onSelectPlaceRef.current = onSelectPlace;
+  }, [places, selectedPlace, onSelectPlace]);
+
+const MAP_LOCATION_PIN_SVG =
+  '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3" fill="currentColor"/></svg>';
 
   // Render markers with inline styles (not Tailwind class strings — those get purged)
   const renderMapboxMarkers = useCallback(
-    (map: any, mapboxgl: any) => {
+    (map: mapboxgl.Map, mb: typeof mapboxgl) => {
       const currentPlaces = placesRef.current;
       const currentSelected = selectedPlaceRef.current;
 
@@ -95,36 +109,107 @@ export function WayinMap({
       markersRef.current = [];
 
       currentPlaces.forEach((place) => {
-        const isSelected = currentSelected?.id === place.id;
-        const el = document.createElement('div');
-        el.style.cursor = 'pointer';
-        el.style.transition = 'transform 0.15s ease';
-        el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.12)'; });
-        el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-
-        if (isSelected) {
-          el.style.cssText = 'position:relative;width:36px;height:36px;';
-          const pulse = document.createElement('span');
-          pulse.style.cssText = 'position:absolute;top:-2px;left:-2px;width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.25);animation:wayin-ping 1.2s cubic-bezier(0,0,0.2,1) infinite;';
-          const dot = document.createElement('div');
-          dot.style.cssText = 'width:36px;height:36px;border-radius:50%;background:#2563EB;border:3px solid white;box-shadow:0 4px 16px rgba(37,99,235,0.45);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;';
-          dot.innerHTML = '<svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-4-7.5"/></svg>';
-          el.appendChild(pulse);
-          el.appendChild(dot);
-        } else {
-          el.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#16A34A;border:2.5px solid white;box-shadow:0 2px 8px rgba(22,163,74,0.35);display:flex;align-items:center;justify-content:center;';
-          el.innerHTML = '<svg width="13" height="13" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/><path d="M2 20h20"/><path d="M14 12v.01"/></svg>';
+        if (!place.coordinates || !Array.isArray(place.coordinates) || place.coordinates.length < 2) {
+          return;
         }
 
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          onSelectPlaceRef.current(place);
-          map.flyTo({ center: place.coordinates, zoom: INDONESIA_DEFAULT_ZOOM, essential: true });
+        const isSelected = currentSelected?.id === place.id;
+
+        // Container element managed exclusively by Mapbox.
+        // DO NOT set style.transform on el directly, as that overrides Mapbox's translate coordinates!
+        const el = document.createElement('div');
+        el.className = 'wayin-mapbox-marker';
+        el.style.cursor = 'pointer';
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('aria-label', `${place.name} - titik lokasi fasilitas`);
+        el.title = `${place.name} (${place.category})`;
+
+        // Inner element where hover animations, borders, and SVGs live
+        const inner = document.createElement('div');
+        inner.style.cursor = 'pointer';
+        inner.style.transition = 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease';
+        inner.style.transformOrigin = 'center center';
+        inner.style.display = 'flex';
+        inner.style.alignItems = 'center';
+        inner.style.justifyContent = 'center';
+
+        if (isSelected) {
+          inner.style.position = 'relative';
+          inner.style.width = '38px';
+          inner.style.height = '38px';
+          inner.style.borderRadius = '50%';
+          inner.style.backgroundColor = '#1D4ED8';
+          inner.style.border = '3px solid #FFFFFF';
+          inner.style.boxShadow = '0 6px 18px rgba(29, 78, 216, 0.5), 0 2px 6px rgba(0, 0, 0, 0.15)';
+          inner.style.color = '#FFFFFF';
+          inner.innerHTML = MAP_LOCATION_PIN_SVG;
+
+          // Pulse animation ring
+          const pulse = document.createElement('span');
+          pulse.style.position = 'absolute';
+          pulse.style.inset = '-6px';
+          pulse.style.borderRadius = '50%';
+          pulse.style.backgroundColor = 'rgba(37, 99, 235, 0.35)';
+          pulse.style.pointerEvents = 'none';
+          pulse.style.animation = 'wayin-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite';
+          pulse.style.zIndex = '-1';
+          inner.appendChild(pulse);
+        } else {
+          inner.style.position = 'relative';
+          inner.style.width = '32px';
+          inner.style.height = '32px';
+          inner.style.borderRadius = '50%';
+          inner.style.backgroundColor = '#16A34A';
+          inner.style.border = '2.5px solid #FFFFFF';
+          inner.style.boxShadow = '0 3px 10px rgba(22, 163, 74, 0.35), 0 1px 3px rgba(0, 0, 0, 0.12)';
+          inner.style.color = '#FFFFFF';
+          inner.innerHTML = MAP_LOCATION_PIN_SVG;
+        }
+
+        // Hover effect strictly on inner element so Mapbox translate is never corrupted
+        inner.addEventListener('mouseenter', () => {
+          inner.style.transform = 'scale(1.2)';
+          inner.style.boxShadow = isSelected
+            ? '0 8px 24px rgba(29, 78, 216, 0.65)'
+            : '0 6px 18px rgba(22, 163, 74, 0.55)';
+          el.style.zIndex = '50';
         });
 
-        markersRef.current.push(
-          new mapboxgl.Marker({ element: el }).setLngLat(place.coordinates).addTo(map)
-        );
+        inner.addEventListener('mouseleave', () => {
+          inner.style.transform = 'scale(1)';
+          inner.style.boxShadow = isSelected
+            ? '0 6px 18px rgba(29, 78, 216, 0.5), 0 2px 6px rgba(0, 0, 0, 0.15)'
+            : '0 3px 10px rgba(22, 163, 74, 0.35), 0 1px 3px rgba(0, 0, 0, 0.12)';
+          el.style.zIndex = isSelected ? '10' : '1';
+        });
+
+        el.appendChild(inner);
+
+        // Click handler to select place and smoothly fly map to location
+        const handleClick = (e: Event) => {
+          e.stopPropagation();
+          onSelectPlaceRef.current(place);
+          map.flyTo({
+            center: place.coordinates,
+            zoom: 15.5,
+            essential: true,
+            duration: 800,
+          });
+        };
+
+        el.addEventListener('click', handleClick);
+        el.addEventListener('keydown', (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleClick(e);
+          }
+        });
+
+        const marker = new mb.Marker({ element: el, anchor: 'center' })
+          .setLngLat(place.coordinates)
+          .addTo(map);
+
+        markersRef.current.push(marker);
       });
     },
     []
@@ -184,6 +269,10 @@ export function WayinMap({
       isMounted = false;
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -192,10 +281,79 @@ export function WayinMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapboxToken]);
 
+  // Render / update user location Red Dot marker
+  useEffect(() => {
+    if (!mapInstanceRef.current || hasMapboxError) return;
+    const map = mapInstanceRef.current;
+
+    if (!userLocation || !Array.isArray(userLocation) || userLocation.length < 2) {
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
+      return;
+    }
+
+    import('mapbox-gl').then((mbModule) => {
+      const mb = mbModule.default;
+      if (!mapInstanceRef.current) return;
+
+      if (!userMarkerRef.current) {
+        const el = document.createElement('div');
+        el.className = 'wayin-user-marker';
+        el.setAttribute('role', 'region');
+        el.setAttribute('aria-label', 'Lokasi Anda saat ini');
+        el.title = 'Lokasi Anda saat ini';
+
+        const inner = document.createElement('div');
+        inner.style.position = 'relative';
+        inner.style.width = '20px';
+        inner.style.height = '20px';
+        inner.style.borderRadius = '50%';
+        inner.style.backgroundColor = '#DC2626';
+        inner.style.border = '3.5px solid #FFFFFF';
+        inner.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.1), 0 3px 12px rgba(220, 38, 38, 0.6)';
+        inner.style.display = 'flex';
+        inner.style.alignItems = 'center';
+        inner.style.justifyContent = 'center';
+
+        // Pulse radar ring around user dot
+        const pulse = document.createElement('span');
+        pulse.style.position = 'absolute';
+        pulse.style.inset = '-10px';
+        pulse.style.borderRadius = '50%';
+        pulse.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
+        pulse.style.pointerEvents = 'none';
+        pulse.style.animation = 'wayin-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite';
+        pulse.style.zIndex = '-1';
+        inner.appendChild(pulse);
+
+        // Center bright dot inside
+        const centerDot = document.createElement('span');
+        centerDot.style.width = '4px';
+        centerDot.style.height = '4px';
+        centerDot.style.borderRadius = '50%';
+        centerDot.style.backgroundColor = '#FFFFFF';
+        inner.appendChild(centerDot);
+
+        el.appendChild(inner);
+
+        userMarkerRef.current = new mb.Marker({ element: el, anchor: 'center' })
+          .setLngLat(userLocation)
+          .addTo(map);
+      } else {
+        userMarkerRef.current.setLngLat(userLocation);
+      }
+    });
+  }, [userLocation, hasMapboxError]);
+
   // Re-render markers when places/selection changes
   useEffect(() => {
     if (mapInstanceRef.current && !hasMapboxError) {
-      import('mapbox-gl').then((m) => renderMapboxMarkers(mapInstanceRef.current, m.default));
+      const map = mapInstanceRef.current;
+      if (map) {
+        import('mapbox-gl').then((m) => renderMapboxMarkers(map, m.default));
+      }
     }
   }, [places, selectedPlace, hasMapboxError, renderMapboxMarkers]);
 
@@ -291,17 +449,35 @@ export function WayinMap({
                       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <span style={{ position: 'absolute', top: '-4px', left: '-4px', width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(59,130,246,0.25)', animation: 'wayin-ping 1.2s cubic-bezier(0,0,0.2,1) infinite' }} />
                         <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#2563EB', border: '3px solid white', boxShadow: '0 4px 16px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-                          <Accessibility style={{ width: '18px', height: '18px', color: 'white', strokeWidth: 2.4 }} />
+                          <MapPin style={{ width: '18px', height: '18px', color: 'white', strokeWidth: 2.4 }} />
                         </div>
                       </div>
                     ) : (
                       <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#16A34A', border: '2.5px solid white', boxShadow: '0 2px 8px rgba(22,163,74,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <DoorOpen style={{ width: '13px', height: '13px', color: 'white', strokeWidth: 2.4 }} />
+                        <MapPin style={{ width: '14px', height: '14px', color: 'white', strokeWidth: 2.4 }} />
                       </div>
                     )}
                   </div>
                 );
               })}
+
+              {/* User Location marker in fallback mode */}
+              {userLocation && (
+                <div
+                  className="absolute pointer-events-auto z-10"
+                  style={{ left: '49%', top: '51%', transform: 'translate(-50%, -50%)' }}
+                  title="Lokasi Anda saat ini"
+                  role="region"
+                  aria-label="Lokasi Anda saat ini"
+                >
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(239,68,68,0.35)', animation: 'wayin-ping 2s cubic-bezier(0,0,0.2,1) infinite' }} />
+                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#DC2626', border: '3px solid white', boxShadow: '0 2px 10px rgba(220,38,38,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'white' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -6,19 +6,52 @@
   --foreground: #111827;
 }
 
-/* Full-height layout reset for map pages */
+/* Layout reset: allow vertical scrolling on content pages, map page manages its own overflow-hidden */
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Black cursor theme for default arrow */
+* {
+  caret-color: #000000 !important;
+}
+
+html, body {
+  cursor: default;
+}
+
+/* Use native browser pointer (telunjuk) for all interactive elements */
+a, button, [role="button"], input[type="submit"], input[type="button"], .cursor-pointer, label[for], select {
+  cursor: pointer !important;
+}
+
+input, textarea {
+  cursor: text;
+  caret-color: #000000 !important;
+}
+
+/* Force pointer cursor on Mapbox markers — Mapbox canvas sets cursor: grab
+   which overrides inline styles. !important ensures the telunjuk shows. */
+.wayin-mapbox-marker,
+.wayin-mapbox-marker *,
+.mapboxgl-marker.wayin-mapbox-marker {
+  cursor: pointer !important;
+}
+
+/* Also prevent grab cursor on marker hover from Mapbox canvas override */
+.mapboxgl-canvas-container:has(.wayin-mapbox-marker:hover) .mapboxgl-canvas {
+  cursor: pointer !important;
 }
 
 /* Ensure Mapbox markers are always visible */
@@ -47,4 +80,3 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-

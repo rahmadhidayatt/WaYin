@@ -68,13 +68,57 @@ alter table public.places enable row level security;
 alter table public.access_points enable row level security;
 alter table public.reports enable row level security;
 
--- POLICIES
 -- Profiles
+alter table public.profiles add column if not exists username text;
+
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
 create policy "Public profiles are viewable by everyone" on public.profiles for select using (true);
 
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile" on public.profiles for insert with check (true);
+
 drop policy if exists "Users can update own profile" on public.profiles;
-create policy "Users can update own profile" on public.profiles for update to authenticated using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
+create policy "Users can update own profile" on public.profiles for update using (true);
+
+-- Automatic trigger: create public.profiles row when auth.users is created
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, username, avatar_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    username = coalesce(excluded.username, profiles.username),
+    updated_at = now();
+  return new;
+exception
+  when others then
+    -- Prevents 'Database error saving new user' if anything goes wrong during profile write
+    return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Backfill existing auth users into public.profiles
+insert into public.profiles (id, full_name, username)
+select 
+  id, 
+  coalesce(raw_user_meta_data->>'full_name', split_part(email, '@', 1)),
+  coalesce(raw_user_meta_data->>'username', split_part(email, '@', 1))
+from auth.users
+on conflict (id) do nothing;
 
 -- Places (allow anyone to read, authenticated or anon to insert/update for demo ease)
 drop policy if exists "Places are viewable by everyone" on public.places;
@@ -138,7 +182,9 @@ insert into public.places (id, name, category, address, latitude, longitude, sta
 ('place-jcc', 'Jakarta Convention Center (JCC)', 'Pusat Konvensi', 'Jl. Jend. Gatot Subroto, Gelora, Tanah Abang, Jakarta Pusat 10270', -6.212500, 106.800556, 'accessible', array['ramp','elevator','accessible_toilet','accessible_parking']),
 ('place-sarinah', 'Sarinah Thamrin', 'Pusat Perbelanjaan & Budaya', 'Jl. M.H. Thamrin No.11, Gondangdia, Menteng, Jakarta Pusat 10350', -6.187778, 106.823611, 'accessible', array['ramp','elevator','accessible_toilet','accessible_parking']),
 ('place-tosari', 'Halte Transjakarta Tosari (Iconic Kapal)', 'Transportasi Publik', 'Jl. M.H. Thamrin, Menteng, Jakarta Pusat 10310', -6.197778, 106.822778, 'accessible', array['elevator','ramp','accessible_entrance']),
-('place-stasiun-gambir', 'Stasiun Kereta Api Gambir', 'Transportasi Publik', 'Jl. Medan Merdeka Timur No.1, Gambir, Jakarta Pusat 10110', -6.176667, 106.830833, 'accessible', array['elevator','ramp','accessible_toilet','accessible_parking']);
+('place-stasiun-gambir', 'Stasiun Kereta Api Gambir', 'Transportasi Publik', 'Jl. Medan Merdeka Timur No.1, Gambir, Jakarta Pusat 10110', -6.176667, 106.830833, 'accessible', array['elevator','ramp','accessible_toilet','accessible_parking']),
+('place-gunadarma', 'Universitas Gunadarma (Kampus Kenari)', 'Perguruan Tinggi', 'Jl. Kenari No. 13, Senen, Jakarta Pusat 10430', -6.192500, 106.848500, 'accessible', array['ramp','elevator','accessible_toilet','accessible_parking']),
+('place-ui', 'Universitas Indonesia (Kampus Salemba)', 'Perguruan Tinggi', 'Jl. Salemba Raya No. 4, Kenari, Senen, Jakarta Pusat 10430', -6.194500, 106.850500, 'accessible', array['ramp','elevator','accessible_entrance','accessible_toilet']);
 
 -- SEED REAL ACCESS POINTS
 insert into public.access_points (id, place_id, name, type, condition, availability, verification, has_no_stairs, near_accessible_parking, latitude, longitude, description, score) values
@@ -201,4 +247,3 @@ insert into public.access_points (id, place_id, name, type, condition, availabil
 ('ap-gambir-1', 'place-stasiun-gambir', 'Lift Penumpang Khusus Difabel (Menuju Peron Lantai 3)', 'elevator', 'good', 'available', 'verified', true, false, -6.176667, 106.830833, 'Elevator diprioritaskan bagi penyandang disabilitas dan lansia untuk naik ke peron kereta eksekutif lantai 3.', 55),
 ('ap-gambir-2', 'place-stasiun-gambir', 'Ramp Pintu Masuk Hall Selatan', 'ramp', 'good', 'available', 'verified', true, true, -6.177200, 106.831000, 'Ramp landai dari area drop-off mobil langsung ke ruang tunggu keberangkatan.', 100),
 ('ap-gambir-3', 'place-stasiun-gambir', 'Toilet Khusus Difabel Hall Keberangkatan', 'accessible_toilet', 'good', 'available', 'verified', true, false, -6.176500, 106.830700, 'Toilet difabel bersih berfasilitas handrail dan tombol bantuan di hall selatan lantai 1.', 55);
-

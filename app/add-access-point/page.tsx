@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Plus,
   Camera,
-  Upload,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -103,7 +102,7 @@ function AddAccessPointForm() {
       : INDONESIA_DEFAULT_CENTER;
 
     // 3. Create Access Point record in Supabase
-    const { data: newAp, error: apError } = await createAccessPoint({
+    const { error: apError } = await createAccessPoint({
       placeId: selectedPlaceId,
       name,
       type,
@@ -180,42 +179,54 @@ function AddAccessPointForm() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl rounded-3xl border border-gray-100 bg-white p-6 sm:p-8 shadow-xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-          Add New Access Point
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Help community members discover accessible ramps, elevators, and entrances.
-        </p>
+    <div className="mx-auto max-w-2xl rounded-2xl sm:rounded-3xl border border-gray-100 bg-white p-4 sm:p-8 shadow-xl">
+      {/* Top Header with Prominent User-Friendly Cancel Button */}
+      <div className="mb-5 sm:mb-6 flex items-start justify-between gap-3 pb-4 border-b border-gray-100">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+            Tambah Titik Akses Baru
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+            Bantu rekan disabilitas menemukan ramp, lift, dan akses ramah disabilitas.
+          </p>
+        </div>
+
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-all active:scale-95 shadow-xs shrink-0 cursor-pointer"
+          title="Batal dan kembali ke peta"
+        >
+          <X className="h-4 w-4 text-gray-500" />
+          <span>Batal</span>
+        </Link>
       </div>
 
       {error && (
-        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs sm:text-sm text-red-700">
+        <div className="mb-4 sm:mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs sm:text-sm text-red-700">
           <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs sm:text-sm text-emerald-800">
+        <div className="mb-4 sm:mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs sm:text-sm text-emerald-800">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
           <span>
-            Access point added successfully! Recorded as unverified. Redirecting to place...
+            Titik akses berhasil ditambahkan! Tercatat sebagai belum diverifikasi. Mengalihkan ke halaman tempat...
           </span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         {/* Target Place Selection */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">
-            Select Destination Place *
+            Pilih Tempat Tujuan *
           </label>
           <select
             value={selectedPlaceId}
             onChange={(e) => setSelectedPlaceId(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 sm:p-3 text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 min-h-[44px]"
           >
             {places.map((place) => (
               <option key={place.id} value={place.id}>
@@ -228,31 +239,31 @@ function AddAccessPointForm() {
         {/* Access Point Name */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">
-            Access Point Name *
+            Nama Titik Akses *
           </label>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. West Wing Automated Ramp"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+            placeholder="contoh: Ramp Sisi Barat Pintu Otomatis"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 sm:p-3 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 min-h-[44px]"
           />
         </div>
 
         {/* Type Selection */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">
-            Access Point Type *
+            Tipe Fasilitas Akses *
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
               { id: 'ramp', label: 'Ramp', icon: Accessibility },
-              { id: 'elevator', label: 'Elevator', icon: ArrowUpDown },
-              { id: 'accessible_toilet', label: 'Restroom', icon: Bath },
-              { id: 'accessible_parking', label: 'Parking', icon: Car },
-              { id: 'accessible_entrance', label: 'Entrance', icon: DoorOpen },
-              { id: 'priority_seating', label: 'Priority Seating', icon: Armchair },
+              { id: 'elevator', label: 'Lift', icon: ArrowUpDown },
+              { id: 'accessible_toilet', label: 'Toilet Disabilitas', icon: Bath },
+              { id: 'accessible_parking', label: 'Parkir Disabilitas', icon: Car },
+              { id: 'accessible_entrance', label: 'Pintu Tanpa Tangga', icon: DoorOpen },
+              { id: 'priority_seating', label: 'Kursi Prioritas', icon: Armchair },
             ].map((item) => {
               const Icon = item.icon;
               const isSelected = type === item.id;
@@ -261,14 +272,14 @@ function AddAccessPointForm() {
                   key={item.id}
                   type="button"
                   onClick={() => setType(item.id as AccessPointType)}
-                  className={`flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-2 rounded-xl border p-2.5 sm:p-3 text-xs font-semibold transition-all min-h-[44px] cursor-pointer ${
                     isSelected
                       ? 'border-blue-600 bg-blue-50/80 text-blue-700 ring-2 ring-blue-500/20'
                       : 'border-gray-200 bg-gray-50/50 text-gray-700 hover:bg-gray-100/50'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </button>
               );
             })}
@@ -276,61 +287,61 @@ function AddAccessPointForm() {
         </div>
 
         {/* Condition & Availability Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              Condition
+              Kondisi Fisik
             </label>
             <select
               value={condition}
-              onChange={(e: any) => setCondition(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCondition(e.target.value as 'good' | 'fair' | 'poor')}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 min-h-[44px]"
             >
-              <option value="good">Good (Smooth / Maintained)</option>
-              <option value="fair">Fair (Usable with caution)</option>
-              <option value="poor">Poor (Requires assistance)</option>
+              <option value="good">Baik (Mulus & Terawat)</option>
+              <option value="fair">Cukup (Bisa dipakai dengan hati-hati)</option>
+              <option value="poor">Kurang (Perlu pendamping)</option>
             </select>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              Current Availability
+              Status Ketersediaan
             </label>
             <select
               value={availability}
-              onChange={(e: any) => setAvailability(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAvailability(e.target.value as 'available' | 'unavailable' | 'unknown')}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 min-h-[44px]"
             >
-              <option value="available">Available</option>
-              <option value="unavailable">Temporarily Closed</option>
-              <option value="unknown">Unknown</option>
+              <option value="available">Tersedia / Dapat Digunakan</option>
+              <option value="unavailable">Ditutup Sementara</option>
+              <option value="unknown">Belum Diketahui</option>
             </select>
           </div>
         </div>
 
         {/* Checkbox Options */}
-        <div className="space-y-2.5 rounded-2xl bg-gray-50 p-4 border border-gray-100">
-          <label className="flex items-center gap-2.5 cursor-pointer">
+        <div className="space-y-2.5 rounded-xl sm:rounded-2xl bg-gray-50 p-3 sm:p-4 border border-gray-100">
+          <label className="flex items-start sm:items-center gap-2.5 cursor-pointer">
             <input
               type="checkbox"
               checked={hasNoStairs}
               onChange={(e) => setHasNoStairs(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5 sm:mt-0"
             />
             <span className="text-xs font-semibold text-gray-800">
-              Step-free (Completely free of steps or high curbs)
+              Tanpa tangga sama sekali (jalur landai atau rata)
             </span>
           </label>
 
-          <label className="flex items-center gap-2.5 cursor-pointer">
+          <label className="flex items-start sm:items-center gap-2.5 cursor-pointer">
             <input
               type="checkbox"
               checked={nearAccessibleParking}
               onChange={(e) => setNearAccessibleParking(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5 sm:mt-0"
             />
             <span className="text-xs font-semibold text-gray-800">
-              Close to designated accessible parking bay (&lt;50m)
+              Dekat dengan area parkir disabilitas (&lt;50 meter)
             </span>
           </label>
         </div>
@@ -338,25 +349,26 @@ function AddAccessPointForm() {
         {/* Description */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">
-            Helpful Notes / Directions
+            Petunjuk Arah / Catatan Tambahan
           </label>
           <textarea
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Ramp is located on the west side near the bicycle racks with push-button automatic doors..."
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+            placeholder="contoh: Terletak di sisi barat gedung dekat parkiran motor, ada tombol otomatis pembuka pintu..."
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-2.5 sm:p-3 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
           />
         </div>
 
         {/* Optional Photo Upload */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">
-            Photographic Evidence (Optional)
+            Unggah Foto Bukti (Opsional)
           </label>
 
           {photoPreview ? (
             <div className="relative aspect-video max-h-48 w-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photoPreview}
                 alt="Preview"
@@ -365,20 +377,20 @@ function AddAccessPointForm() {
               <button
                 type="button"
                 onClick={handleRemovePhoto}
-                className="absolute top-2 right-2 rounded-full bg-black/70 p-1.5 text-white hover:bg-black"
-                title="Remove photo"
+                className="absolute top-2 right-2 rounded-full bg-black/70 p-1.5 text-white hover:bg-black cursor-pointer"
+                title="Hapus foto"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-6 cursor-pointer hover:bg-gray-100/50 transition-colors">
-              <Camera className="h-7 w-7 text-gray-400 mb-1.5" />
-              <span className="text-xs font-semibold text-gray-700">
-                Click to upload entrance or ramp photo
+            <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-5 sm:p-6 cursor-pointer hover:bg-gray-100/50 transition-colors">
+              <Camera className="h-6 w-6 sm:h-7 sm:w-7 text-gray-400 mb-1" />
+              <span className="text-xs font-semibold text-gray-700 text-center">
+                Ketuk untuk unggah foto akses atau ramp
               </span>
               <span className="text-[11px] text-gray-400 mt-0.5">
-                PNG, JPG or WebP (max 5MB)
+                PNG, JPG atau WebP (maks 5MB)
               </span>
               <input
                 type="file"
@@ -390,30 +402,22 @@ function AddAccessPointForm() {
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Cancel</span>
-          </Link>
-
+        {/* Action Button */}
+        <div className="flex justify-end pt-2 sm:pt-3">
           <button
             type="submit"
             disabled={submitting || success}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60"
+            className="w-full sm:w-auto flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 cursor-pointer transition-all"
           >
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Recording...</span>
+                <span>Menyimpan...</span>
               </>
             ) : (
               <>
                 <Plus className="h-4 w-4 stroke-[2.5]" />
-                <span>Submit Access Point</span>
+                <span>Kirim Titik Akses</span>
               </>
             )}
           </button>
@@ -425,8 +429,8 @@ function AddAccessPointForm() {
 
 export default function AddAccessPointPage() {
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <Suspense fallback={<div className="text-center text-sm text-gray-500 py-16">Loading form...</div>}>
+    <div className="min-h-screen bg-gray-50 p-3.5 sm:p-8 pb-16">
+      <Suspense fallback={<div className="text-center text-sm text-gray-500 py-16">Memuat formulir...</div>}>
         <AddAccessPointForm />
       </Suspense>
     </div>

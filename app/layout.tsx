@@ -15,8 +15,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'WAYIN – Find Your Way In',
-  description: 'Community-powered accessibility map. Know before you go.',
+  title: 'WAYIN – Peta Aksesibilitas Fasilitas Publik',
+  description: 'Peta aksesibilitas berbasis komunitas untuk menemukan titik akses ramah disabilitas (ramp, lift, toilet, parkir) sebelum Anda tiba di lokasi.',
+  keywords: ['aksesibilitas', 'peta disabilitas', 'ramp', 'lift', 'kursi roda', 'WAYIN', 'Jakarta'],
+  authors: [{ name: 'WAYIN Community' }],
+  icons: {
+    icon: '/wayin-logo.png',
+  },
+  openGraph: {
+    title: 'WAYIN – Find Your Way In',
+    description: 'Peta aksesibilitas berbasis komunitas. Know before you go.',
+    url: 'https://wayin.app',
+    siteName: 'WAYIN',
+    locale: 'id_ID',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
@@ -29,10 +42,9 @@ export default function RootLayout({
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden bg-white text-gray-900">
+      <body className="min-h-full bg-white text-gray-900">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
 }
-

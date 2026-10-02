@@ -7,12 +7,14 @@ interface MapControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onRecenter: () => void;
+  hasUserLocation?: boolean;
 }
 
 export function MapControls({
   onZoomIn,
   onZoomOut,
   onRecenter,
+  hasUserLocation,
 }: MapControlsProps) {
   return (
     <div className="flex flex-col items-center gap-2 select-none">
@@ -38,15 +40,22 @@ export function MapControls({
         </button>
       </div>
 
-      {/* Recenter button */}
+      {/* Recenter button (prioritizes user location) */}
       <button
         type="button"
         onClick={onRecenter}
-        aria-label="Recenter map"
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white text-blue-600 shadow-md transition-all hover:bg-blue-50 hover:text-blue-700 active:scale-95"
-        title="Recenter map to default view"
+        aria-label={hasUserLocation ? 'Pusatkan ke lokasi saya' : 'Pusatkan peta'}
+        className={`relative flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200/90 bg-white shadow-md transition-all active:scale-95 ${
+          hasUserLocation
+            ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
+            : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+        }`}
+        title={hasUserLocation ? 'Pusatkan ke lokasi Anda' : 'Pusatkan peta ke Jakarta'}
       >
         <Locate className="h-4 w-4 stroke-[2.2]" />
+        {hasUserLocation && (
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white" />
+        )}
       </button>
     </div>
   );

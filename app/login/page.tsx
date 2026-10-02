@@ -2,8 +2,9 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Accessibility, ArrowLeft, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthContext';
 
 function LoginForm() {
@@ -40,10 +41,15 @@ function LoginForm() {
     <div className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 sm:p-8 shadow-2xl">
       {/* Brand logo & title */}
       <div className="flex flex-col items-center text-center mb-6">
-        <Link href="/" className="flex items-center gap-2 mb-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md ring-4 ring-blue-50">
-            <Accessibility className="h-6 w-6 stroke-[2.2]" />
-          </div>
+        <Link href="/" className="flex items-center gap-2 mb-4">
+          <Image
+            src="/wayin-logo.png"
+            alt="WAYIN"
+            width={160}
+            height={55}
+            className="h-12 w-auto object-contain"
+            priority
+          />
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Welcome back to WAYIN
@@ -147,4 +153,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

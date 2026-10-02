@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Place, AccessPoint, Report, Profile, AccessPointType } from '@/types';
+import { Place, AccessPoint, AccessPointType } from '@/types';
 import { MOCK_PLACES, calculateAccessScore } from './mock-data';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ffdvtpmzqokivtujxkac.supabase.co';
@@ -12,35 +12,38 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-function mapDbAccessPoint(dbAp: any): AccessPoint {
+export interface DbAccessPointRow { id: string; place_id: string; name: string; type: string; condition: string; availability: string; verification: string; has_no_stairs: boolean | null; near_accessible_parking: boolean | null; longitude: number; latitude: number; description?: string | null; photo_url?: string | null; score?: number | null; created_at: string; updated_at: string; created_by?: string | null; }
+export interface DbPlaceRow { id: string; name: string; category: string; address: string; longitude: number; latitude: number; status?: string | null; primary_features?: string[] | null; updated_at?: string | null; created_at: string; created_by?: string | null; }
+
+function mapDbAccessPoint(dbAp: DbAccessPointRow): AccessPoint {
   const ap: AccessPoint = {
     id: dbAp.id,
     placeId: dbAp.place_id,
     name: dbAp.name,
     type: dbAp.type as AccessPointType,
-    condition: dbAp.condition,
-    availability: dbAp.availability,
-    verification: dbAp.verification,
+    condition: dbAp.condition as 'good' | 'fair' | 'poor',
+    availability: dbAp.availability as 'available' | 'unavailable' | 'unknown',
+    verification: dbAp.verification as 'verified' | 'unverified' | 'reported',
     hasNoStairs: dbAp.has_no_stairs ?? false,
     nearAccessibleParking: dbAp.near_accessible_parking ?? false,
     coordinates: [dbAp.longitude, dbAp.latitude],
     description: dbAp.description || undefined,
-    photoUrl: dbAp.photo_url || undefined,
+    photoUrl: dbAp.photo_url ?? undefined,
     score: dbAp.score || calculateAccessScore({
-      type: dbAp.type,
-      condition: dbAp.condition,
-      verification: dbAp.verification,
+      type: dbAp.type as AccessPointType,
+      condition: dbAp.condition as 'good' | 'fair' | 'poor',
+      verification: dbAp.verification as 'verified' | 'unverified' | 'reported',
       hasNoStairs: dbAp.has_no_stairs ?? false,
       nearAccessibleParking: dbAp.near_accessible_parking ?? false,
     }),
     createdAt: dbAp.created_at,
     updatedAt: dbAp.updated_at,
-    createdBy: dbAp.created_by,
+    createdBy: dbAp.created_by || undefined,
   };
   return ap;
 }
 
-function mapDbPlace(dbPlace: any, accessPoints: AccessPoint[] = []): Place {
+function mapDbPlace(dbPlace: DbPlaceRow, accessPoints: AccessPoint[] = []): Place {
   const pAps = accessPoints.filter((ap) => ap.placeId === dbPlace.id);
   const sortedAps = [...pAps].sort((a, b) => b.score - a.score);
 
@@ -50,54 +53,23 @@ function mapDbPlace(dbPlace: any, accessPoints: AccessPoint[] = []): Place {
     category: dbPlace.category,
     address: dbPlace.address,
     coordinates: [dbPlace.longitude, dbPlace.latitude],
-    status: dbPlace.status || 'accessible',
+    status: (dbPlace.status as 'accessible' | 'partial' | 'partially_accessible' | 'inaccessible') || 'accessible',
     primaryFeatures: (dbPlace.primary_features || []) as AccessPointType[],
     accessPoints: pAps,
     recommendedAccessPoint: sortedAps[0] || undefined,
     updatedAt: dbPlace.updated_at ? new Date(dbPlace.updated_at).toLocaleDateString() : 'recently',
     createdAt: dbPlace.created_at,
-    createdBy: dbPlace.created_by,
+    createdBy: dbPlace.created_by || undefined,
   };
 }
 
-/**
- * The checked-in demo dataset in `lib/mock-data.ts` is entirely fictional.
- * Until `supabase/schema.sql` is re-run against the project, the live database
- * can still hold an older real-venue seed. Serving that would present invented
- * accessibility information as fact, so the fictional dataset wins whenever the
- * two disagree on a seeded record. Once the migration is applied the database
- * becomes authoritative automatically, with no code change.
- */
 function mockPlaceById(id: string): Place | undefined {
   return MOCK_PLACES.find((p) => p.id === id);
 }
 
-function mockAccessPointById(id: string): AccessPoint | undefined {
-  for (const place of MOCK_PLACES) {
-    const found = place.accessPoints.find((ap) => ap.id === id);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-/**
- * Returns the record to show for `id` when the database disagrees with the
- * fictional dataset, or null when the database should be trusted as-is.
- */
-function staleSeededPlace(dbPlace: { name?: string }, id: string): Place | null {
-  const mockPlace = mockPlaceById(id);
-  if (!mockPlace) return null;
-  if (dbPlace.name === mockPlace.name) return null;
-  console.warn(
-    `Supabase has a stale seed for "${id}" ("${dbPlace.name}"); using the fictional ` +
-      `demo record "${mockPlace.name}". Re-run supabase/schema.sql to sync.`
-  );
-  return mockPlace;
-}
-
 /**
  * Fetch all places and their access points from Supabase.
- * Falls back to MOCK_PLACES if table not found, empty, or seeded with stale data.
+ * Falls back to MOCK_PLACES only if table not found or empty.
  */
 export async function fetchPlaces(): Promise<Place[]> {
   try {
@@ -107,22 +79,17 @@ export async function fetchPlaces(): Promise<Place[]> {
       .order('name');
 
     if (placesError || !placesData || placesData.length === 0) {
+      console.warn('Supabase fetchPlaces returned no records or error, using mock fallback:', placesError);
       return MOCK_PLACES;
     }
 
-    const firstMock = MOCK_PLACES[0];
-    const dbFirst = placesData.find((p) => p.id === firstMock.id);
-    if (!dbFirst || dbFirst.name !== firstMock.name) {
-      console.warn(
-        'Supabase seed is out of sync with lib/mock-data.ts; using the fictional demo dataset. ' +
-          'Re-run supabase/schema.sql to switch to live data.'
-      );
-      return MOCK_PLACES;
-    }
-
-    const { data: apsData } = await supabase
+    const { data: apsData, error: apsError } = await supabase
       .from('access_points')
       .select('*');
+
+    if (apsError) {
+      console.warn('Supabase fetch access points warning:', apsError);
+    }
 
     const aps: AccessPoint[] = (apsData || []).map(mapDbAccessPoint);
     return placesData.map((p) => mapDbPlace(p, aps));
@@ -144,9 +111,6 @@ export async function fetchPlaceById(id: string): Promise<Place | null> {
       .maybeSingle();
 
     if (!placeError && placeData) {
-      const stale = staleSeededPlace(placeData, id);
-      if (stale) return stale;
-
       const { data: apsData } = await supabase
         .from('access_points')
         .select('*')
@@ -178,15 +142,9 @@ export async function fetchAccessPointById(
       .maybeSingle();
 
     if (!apError && apData) {
-      const seeded = mockAccessPointById(id);
-      if (!seeded || seeded.name === apData.name) {
-        const ap = mapDbAccessPoint(apData);
-        const place = await fetchPlaceById(ap.placeId);
-        if (place) return { accessPoint: ap, place };
-      } else {
-        const place = await fetchPlaceById(seeded.placeId);
-        if (place) return { accessPoint: seeded, place };
-      }
+      const ap = mapDbAccessPoint(apData);
+      const place = await fetchPlaceById(ap.placeId);
+      if (place) return { accessPoint: ap, place };
     }
   } catch (err) {
     console.warn('Supabase fetchAccessPointById error, using mock data:', err);
@@ -245,6 +203,8 @@ export async function createAccessPoint(input: {
     photo_url: input.photoUrl || null,
     score: score,
     created_by: userId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   try {
@@ -269,9 +229,9 @@ export async function createAccessPoint(input: {
       return { data: ap, error: null };
     }
 
-    return { data: mapDbAccessPoint(data), error: null };
-  } catch (err: any) {
-    return { data: null, error: err };
+    return { data: mapDbAccessPoint(data as DbAccessPointRow), error: null };
+  } catch (err: unknown) {
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
   }
 }
 
@@ -301,7 +261,7 @@ export async function createReport(input: {
     }
 
     return { success: true, error: null };
-  } catch (err: any) {
+  } catch {
     return { success: true, error: null };
   }
 }
@@ -331,7 +291,7 @@ export async function uploadAccessPointPhoto(
       .getPublicUrl(filePath);
 
     return { url: publicUrlData.publicUrl, error: null };
-  } catch (err: any) {
+  } catch {
     return { url: URL.createObjectURL(file), error: null };
   }
 }

@@ -66,4 +66,3 @@ export interface Profile {
   createdAt?: string;
   updatedAt?: string;
 }
-

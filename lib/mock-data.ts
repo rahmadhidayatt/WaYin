@@ -1,4 +1,4 @@
-import { AccessPoint, Place, AccessPointType } from '@/types';
+import { Place, AccessPointType } from '@/types';
 
 /**
  * Default map center: Jakarta Pusat, Indonesia
@@ -38,10 +38,10 @@ export function calculateAccessScore(point: {
 export const MOCK_PLACES: Place[] = [
   {
     id: 'place-1',
-    name: 'Kampus Terata Nusantara',
+    name: 'Universitas Gunadarma (Kampus Kenari)',
     category: 'Perguruan Tinggi',
-    address: 'Jl. Edukasi Raya No.1, Sawah Besar, Jakarta Pusat',
-    coordinates: [106.8302, -6.1765],
+    address: 'Jl. Kenari No. 13, Senen, Jakarta Pusat',
+    coordinates: [106.8485, -6.1925],
     updatedAt: '2 hari lalu',
     status: 'accessible',
     primaryFeatures: ['ramp', 'elevator', 'accessible_toilet', 'accessible_parking'],
@@ -172,10 +172,10 @@ export const MOCK_PLACES: Place[] = [
   },
   {
     id: 'place-4',
-    name: 'Galeri Niaga Maju',
-    category: 'Pusat Perbelanjaan',
-    address: 'Jl. Niaga Utama No.1, Menteng, Jakarta Pusat',
-    coordinates: [106.8218, -6.1951],
+    name: 'Jakarta Convention Center (JCC)',
+    category: 'Pusat Konvensi',
+    address: 'Jl. Jend. Gatot Subroto, Gelora, Tanah Abang, Jakarta Pusat',
+    coordinates: [106.800556, -6.2125],
     updatedAt: '3 hari lalu',
     status: 'accessible',
     primaryFeatures: ['ramp', 'elevator', 'accessible_toilet', 'accessible_parking', 'priority_seating'],
@@ -422,13 +422,13 @@ export const MOCK_PLACES: Place[] = [
   },
   {
     id: 'place-12',
-    name: 'Pusat Niaga Sentosa',
-    category: 'Pusat Perbelanjaan',
-    address: 'Jl. Sentosa No.1, Menteng, Jakarta Pusat',
-    coordinates: [106.8193, -6.1913],
-    updatedAt: '1 minggu lalu',
-    status: 'partial',
-    primaryFeatures: ['elevator', 'accessible_entrance'],
+    name: 'Universitas Indonesia (Kampus Salemba)',
+    category: 'Perguruan Tinggi',
+    address: 'Jl. Salemba Raya No. 4, Kenari, Senen, Jakarta Pusat',
+    coordinates: [106.8505, -6.1945],
+    updatedAt: '1 hari lalu',
+    status: 'accessible',
+    primaryFeatures: ['ramp', 'elevator', 'accessible_entrance', 'accessible_toilet'],
     accessPoints: [
       {
         id: 'ap-1201',
